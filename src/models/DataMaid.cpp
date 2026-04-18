@@ -7,6 +7,8 @@
 #include"./models/DataMaid.h"
 #include"ConfigHelper.h"
 #include<QNetworkInterface>
+#include<QCoreApplication>
+#include<QDir>
 DataMaid::DataMaid()
 {
 	memberIni();
@@ -36,6 +38,9 @@ void DataMaid::memberIni()
 	m_simulatedBrowseInterval = ConfigHelper::getSetting("simulatedBrowseInterval", 60).toInt();
 	m_enableAutoLoginCB = ConfigHelper::getSetting("enableAutoLoginCB", true).toBool();
 	m_enableForceLogin = ConfigHelper::getSetting("enableForceLogin", true).toBool();
+
+	// 启动时同步开机自启状态到注册表
+	enableAutoStartChanged(m_enableAutoStart);
 }
 
 QString DataMaid::getLocalIp() const
@@ -171,5 +176,16 @@ void DataMaid::enableAutoStartChanged(bool value)
 		m_enableAutoStart = value;
 		ConfigHelper::setSetting("enableAutoStart", m_enableAutoStart);
 		emit sigEnableAutoStartChanged();
+	}
+
+	// 写入或删除注册表以控制开机自启
+	QSettings reg("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+	QString appName = "SmartLinkForDrCOM";
+	if (value) {
+		QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+		reg.setValue(appName, "\"" + appPath + "\"");
+	}
+	else {
+		reg.remove(appName);
 	}
 }
