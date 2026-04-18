@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QtWidgets/QMainWindow>
 #include<QList>
@@ -14,11 +14,13 @@ class SmartLinkForDrCOM : public QMainWindow
 public:
     SmartLinkForDrCOM(DataMaid *dataMaid,LoginManager *loginManager,QWidget *parent = nullptr);
     ~SmartLinkForDrCOM();
-	void initUserUI();
+	
 public slots:
 
     void usersChanged(QList<UserEntity>& users);
-
+private:
+    void initUserUI();
+    void initKeepLiveUI();
 private:
     Ui::SmartLinkForDrCOMClass *ui;
 	DataMaid* m_dataMaid;

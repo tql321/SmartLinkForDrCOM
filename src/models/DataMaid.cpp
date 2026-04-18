@@ -1,4 +1,4 @@
-﻿#include "dataMaid.h"
+#include "dataMaid.h"
 #include<QSettings>
 #include<algorithm>
 #include<QComboBox>
@@ -9,9 +9,6 @@
 DataMaid::DataMaid()	
 {
 	memberIni();
-	m_loginInterval = ConfigHelper::getSetting("loginInterval", 60).toInt();
-	m_enableAutoStart = ConfigHelper::getSetting("enableAutoStart", true).toBool();
-	m_simulatedBrowseInterval = ConfigHelper::getSetting("simulatedBrowseInterval", 60).toInt();	
 	
 }
 
@@ -33,6 +30,10 @@ void DataMaid::memberIni()
 	//不得构造与初始化阶段释放信号
 	//emit sigUsersChanged(m_users);
 	//emit sigUsersInit(m_curUsername, m_curPassword);
+	m_enableAutoStart = ConfigHelper::getSetting("enableAutoStart", true).toBool();
+	m_simulatedBrowseInterval = ConfigHelper::getSetting("simulatedBrowseInterval", 60).toInt();
+	m_enableAutoLoginCB = ConfigHelper::getSetting("enableAutoLoginCB", true).toBool();
+	m_enableForceLogin = ConfigHelper::getSetting("enableForceLogin", true).toBool();
 }
 
 void DataMaid::curUsernameChanged(const QString& username)
@@ -52,8 +53,23 @@ void DataMaid::curPasswordChanged(const QString& password)
 	emit sigCurPasswordChanged();
 }
 
+void DataMaid::enableAutoLoginChanged(bool checked)
+{
+	if (checked == m_enableAutoLoginCB) {
+		return;
+	}
+	m_enableAutoLoginCB = checked;
+	emit sigEnableAutoStartChanged();
+}
 
-
+void DataMaid::enableForceLoginChanged(bool checked)
+{
+	if (checked == m_enableForceLogin) {
+		return;
+	}
+	m_enableForceLogin = checked;
+	emit sigEnableForceLoginChanged();
+}
 
 void DataMaid::addUser(const UserEntity& user)
 {

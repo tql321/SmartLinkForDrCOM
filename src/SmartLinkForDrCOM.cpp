@@ -1,4 +1,4 @@
-﻿#include "SmartLinkForDrCOM.h"
+#include "SmartLinkForDrCOM.h"
 #include"core/loginManager.h"
 #include "ui_SmartLinkForDrCOM.h"
 #include<QComboBox>
@@ -17,6 +17,7 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid *dataMaid, LoginManager *loginMana
 	ui->setupUi(this);
 	//初始化账号和密码输入框
 	initUserUI();
+	initKeepLiveUI();
 	connect(ui->accountCB, &QComboBox::currentTextChanged, m_dataMaid, &DataMaid::curUsernameChanged);
 	connect(ui->accountCB, QOverload<int>::of(&QComboBox::currentIndexChanged), m_dataMaid, &DataMaid::userItemChanged);
 	connect(ui->passwordLE, &QLineEdit::textChanged, m_dataMaid, &DataMaid::curPasswordChanged);
@@ -25,6 +26,9 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid *dataMaid, LoginManager *loginMana
 		QString curPass = ui->passwordLE->text();
 		m_loginManager->onLogin(curUser, curPass);
 	});
+	connect(ui->enableAutoLoginCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableAutoLoginChanged);
+	connect(ui->enableForceLoginCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableForceLoginChanged);
+
 	connect(m_dataMaid, &DataMaid::sigUsersChanged, this, &SmartLinkForDrCOM::usersChanged);
 	connect(m_loginManager, &LoginManager::sigLoginSuccess, m_dataMaid, &DataMaid::loginSuccess);
 	connect(m_dataMaid, &DataMaid::sigCurUsernameChanged, this, [this]() {
@@ -32,6 +36,12 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid *dataMaid, LoginManager *loginMana
 	});
 	connect(m_dataMaid, &DataMaid::sigCurPasswordChanged, this, [this]() {
 		ui->passwordLE->setText(m_dataMaid->getCurPassword());
+	});
+	connect(m_dataMaid, &DataMaid::sigEnableAutoLoginChanged, this, [this]() {
+		ui->enableAutoLoginCB->setChecked(m_dataMaid->getEnableAutoLogin());
+	});
+	connect(m_dataMaid, &DataMaid::sigEnableForceLoginChanged, this, [this]() {
+		ui->enableForceLoginCB->setChecked(m_dataMaid->getEnableForceLogin());
 	});
 }
 
@@ -59,4 +69,9 @@ void SmartLinkForDrCOM::initUserUI() {
 	//从DataMaid中获取当前用户名和密码并更新界面
 	ui->accountCB->setCurrentText(m_dataMaid->getCurUsername());
 	ui->passwordLE->setText(m_dataMaid->getCurPassword());
+}
+void SmartLinkForDrCOM::initKeepLiveUI() {
+	//从DataMaid中获取自动登录和强制登录的设置并更新界面
+	ui->enableAutoLoginCB->setChecked(m_dataMaid->getEnableAutoLogin());
+	ui->enableForceLoginCB->setChecked(m_dataMaid->getEnableForceLogin());
 }
