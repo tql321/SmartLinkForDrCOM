@@ -1,0 +1,11 @@
+# 告诉编辑器这是最顶层的配置文件
+root = true
+
+# 匹配所有文件
+[*]
+# 强制使用 UTF-8 编码
+charset = utf-8
+# 强制换行符为 LF (可选，针对跨平台友好，如果不跨平台可以改为 crlf)
+end_of_line = crlf
+# 确保文件末尾有一个空行
+insert_final_newline = true

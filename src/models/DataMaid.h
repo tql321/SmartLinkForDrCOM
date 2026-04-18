@@ -1,9 +1,10 @@
 #pragma once
-#include<QString>
-#include<QObject>
-#include"../Entity/UserEntity.h"
-#include"../mould/Singleton.h"
-class DataMaid :public QObject
+#include <QString>
+#include <QObject>
+#include "../entity/UserEntity.h"
+#include "../mould/Singleton.h"
+#define DATAMAID DataMaid::instance()
+class DataMaid : public QObject, public Singleton<DataMaid>
 {
 	
 	Q_OBJECT
@@ -14,7 +15,6 @@ class DataMaid :public QObject
 		Q_PROPERTY(QString curPassword MEMBER m_curPassword NOTIFY sigCurPasswordChanged)
 public:
 	DataMaid();
-	~DataMaid() = default;
 signals:
 
 	void sigSimulatedBrowseIntervalChanged();
@@ -33,6 +33,8 @@ public slots:
 	void userItemChanged(int index);
 	void enableAutoLoginChanged(bool checked);
 	void enableForceLoginChanged(bool checked);
+	void simulatedBrowseIntervalChanged(int value);
+	void enableAutoStartChanged(bool value);
 public:
 	void addUser(const UserEntity& user);
 	void sortUsers();
@@ -43,7 +45,8 @@ public:
 	bool getEnableAutoStart() const { return m_enableAutoStart; };
 	bool getEnableAutoLogin() const { return m_enableAutoLoginCB; };
 	bool getEnableForceLogin() const { return m_enableForceLogin; };
-
+	int getSimulatedBrowseInterval() const { return m_simulatedBrowseInterval; };
+	bool getEnableAutoLoginCB() const { return m_enableAutoLoginCB; };
 
 private:
 	qint32 m_simulatedBrowseInterval;

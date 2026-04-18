@@ -1,39 +1,48 @@
 #include "SmartLinkForDrCOM.h"
-#include"core/loginManager.h"
+#include "core/AccountManager.h"
 #include "ui_SmartLinkForDrCOM.h"
-#include<QComboBox>
-#include<QPushButton>
-#include<iostream>
-#include<algorithm>
-#include<QLineEdit>
-#include"models/DataMaid.h"
-#include"models/ConfigHelper.h"
-SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid *dataMaid, LoginManager *loginManager, QWidget *parent)
+#include <QComboBox>
+#include <QPushButton>
+#include <iostream>
+#include <algorithm>
+#include <QLineEdit>
+#include "models/DataMaid.h"
+#include "models/ConfigHelper.h"
+#include "core/SystemTrayManager.h"
+#include <QApplication>
+#include <QSpinBox>
+#include <QCheckBox>
+#include <QCloseEvent>
+SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid* dataMaid, AccountManager* accountManager, QWidget* parent)
 	: QMainWindow(parent)
-	,ui(new Ui::SmartLinkForDrCOMClass)
+	, ui(new Ui::SmartLinkForDrCOMClass)
 	, m_dataMaid(dataMaid)
-	, m_loginManager(loginManager)
+	, m_accountManager(accountManager)
 {
 	ui->setupUi(this);
-	//初始化账号和密码输入框
-	initUserUI();
-	initKeepLiveUI();
+	this->setWindowIcon(QIcon(":/resources/logo/logo.png"));
+	initUI();
 	connect(ui->accountCB, &QComboBox::currentTextChanged, m_dataMaid, &DataMaid::curUsernameChanged);
 	connect(ui->accountCB, QOverload<int>::of(&QComboBox::currentIndexChanged), m_dataMaid, &DataMaid::userItemChanged);
 	connect(ui->passwordLE, &QLineEdit::textChanged, m_dataMaid, &DataMaid::curPasswordChanged);
 	connect(ui->loginBtn, &QPushButton::clicked, this, [this]() {
 		QString curUser = ui->accountCB->currentText();
 		QString curPass = ui->passwordLE->text();
-		m_loginManager->onLogin(curUser, curPass);
+		m_accountManager->onLogin(curUser, curPass);
 	});
+	// connect(ui->logoutBtn, &QPushButton::clicked, this, [this]() {
+	// m_accountManager->onLogout();
+	// });
+	connect(ui->simulatedBrowseIntervalSB, QOverload<int>::of(&QSpinBox::valueChanged), m_dataMaid, &DataMaid::simulatedBrowseIntervalChanged);
+	connect(ui->enableAutoStartCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableAutoStartChanged);
 	connect(ui->enableAutoLoginCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableAutoLoginChanged);
-	connect(ui->enableForceLoginCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableForceLoginChanged);
+	connect(ui->enableForceLogin, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableForceLoginChanged);
 
 	connect(m_dataMaid, &DataMaid::sigUsersChanged, this, &SmartLinkForDrCOM::usersChanged);
-	connect(m_loginManager, &LoginManager::sigLoginSuccess, m_dataMaid, &DataMaid::loginSuccess);
+	connect(m_accountManager, &AccountManager::sigLoginSuccess, m_dataMaid, &DataMaid::loginSuccess);
 	connect(m_dataMaid, &DataMaid::sigCurUsernameChanged, this, [this]() {
 		ui->accountCB->setCurrentText(m_dataMaid->getCurUsername());
-	});
+		});
 	connect(m_dataMaid, &DataMaid::sigCurPasswordChanged, this, [this]() {
 		ui->passwordLE->setText(m_dataMaid->getCurPassword());
 	});
@@ -41,8 +50,16 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid *dataMaid, LoginManager *loginMana
 		ui->enableAutoLoginCB->setChecked(m_dataMaid->getEnableAutoLogin());
 	});
 	connect(m_dataMaid, &DataMaid::sigEnableForceLoginChanged, this, [this]() {
-		ui->enableForceLoginCB->setChecked(m_dataMaid->getEnableForceLogin());
+		ui->enableForceLogin->setChecked(m_dataMaid->getEnableForceLogin());
 	});
+	m_trayManager = new SystemTrayManager(this);
+
+	connect(m_trayManager, &SystemTrayManager::showWindowRequested, this, [this]() {
+		this->showNormal();
+		this->activateWindow();
+		});
+	connect(m_trayManager, &SystemTrayManager::quitRequested, qApp, &QApplication::quit);
+	
 }
 
 SmartLinkForDrCOM::~SmartLinkForDrCOM()
@@ -52,26 +69,34 @@ SmartLinkForDrCOM::~SmartLinkForDrCOM()
 
 void SmartLinkForDrCOM::usersChanged(QList<UserEntity>& users)
 {
-	//更新界面
+	ui->accountCB->blockSignals(true);
 	ui->accountCB->clear();
 	for (const UserEntity& user : users) {
 		ui->accountCB->addItem(user.username);
 	}
-	// 将用户列表保存到设置中
-	ConfigHelper::setSetting("users", QVariant::fromValue(users));
 }
-void SmartLinkForDrCOM::initUserUI() {
 
-	//更新用户列表
+void SmartLinkForDrCOM::initUI() {
 	for (const UserEntity& user : m_dataMaid->getUsers()) {
 		ui->accountCB->addItem(user.username);
 	}
-	//从DataMaid中获取当前用户名和密码并更新界面
 	ui->accountCB->setCurrentText(m_dataMaid->getCurUsername());
 	ui->passwordLE->setText(m_dataMaid->getCurPassword());
-}
-void SmartLinkForDrCOM::initKeepLiveUI() {
-	//从DataMaid中获取自动登录和强制登录的设置并更新界面
+	ui->simulatedBrowseIntervalSB->setValue(m_dataMaid->getSimulatedBrowseInterval());
+	ui->enableAutoStartCB->setChecked(m_dataMaid->getEnableAutoStart());
 	ui->enableAutoLoginCB->setChecked(m_dataMaid->getEnableAutoLogin());
-	ui->enableForceLoginCB->setChecked(m_dataMaid->getEnableForceLogin());
+	ui->enableForceLogin->setChecked(m_dataMaid->getEnableForceLogin());
+
+}
+
+void SmartLinkForDrCOM::closeEvent(QCloseEvent* event)
+{
+	if (m_trayManager->isVisible()) {
+		this->hide();
+		event->ignore();
+		m_trayManager->showMessage(QString::fromUtf8("提示"), QString::fromUtf8("程序已最小化到托盘运行"));
+	}
+	else {
+		event->accept();
+	}
 }

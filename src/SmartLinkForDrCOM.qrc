@@ -1,4 +1,5 @@
 <RCC>
-    <qresource prefix="SmartLinkForDrCOM">
+    <qresource prefix="/">
+        <file>resources/logo/logo.png</file>
     </qresource>
 </RCC>

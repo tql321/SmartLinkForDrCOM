@@ -1,9 +1,11 @@
-﻿#include "SmartLinkForDrCOM.h"
+#include "SmartLinkForDrCOM.h"
 #include <QtWidgets/QApplication>
-#include "Entity/UserEntity.h"
+#include "entity/UserEntity.h"
 #include "models/DataMaid.h"
-#include"core/LoginManager.h"
-int main(int argc, char *argv[])
+#include "core/AccountManager.h"
+#include "core/KeepLiveManager.h"
+
+int main(int argc, char* argv[])
 {
 	qRegisterMetaType<QList<UserEntity>>("QList<UserEntity>");
 	qRegisterMetaTypeStreamOperators<QList<UserEntity>>("QList<UserEntity>");
@@ -11,12 +13,15 @@ int main(int argc, char *argv[])
 	qRegisterMetaTypeStreamOperators<UserEntity>("UserEntity");
 
 	QApplication app(argc, argv);
-	//将应用程序的组织名称和应用程序名称设置为常量，以便在其他地方使用
 	QApplication::setOrganizationName(ORG_NAME);
 	QApplication::setApplicationName(APP_NAME);
-	DataMaid dataMaid;
-	LoginManager loginManager;
-	SmartLinkForDrCOM window(&dataMaid, &loginManager);
+
+	// Because they inherit Singleton, we pass their instances directly
+	SmartLinkForDrCOM window(&DataMaid::instance(), &AccountManager::instance());
 	window.show();
+
+	// Start Keep-Alive tasks if needed
+	KeepLiveManager::instance();
+
 	return app.exec();
 }
