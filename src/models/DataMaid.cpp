@@ -38,7 +38,8 @@ void DataMaid::memberIni()
 	m_simulatedBrowseInterval = ConfigHelper::getSetting("simulatedBrowseInterval", 60).toInt();
 	m_enableAutoLoginCB = ConfigHelper::getSetting("enableAutoLoginCB", true).toBool();
 	m_enableForceLogin = ConfigHelper::getSetting("enableForceLogin", true).toBool();
-
+	m_authServerIp = ConfigHelper::getSetting("authServerIp", "192.168.125.13").toString();
+	m_authAddress = "https://" + m_authServerIp + ":802/eportal/portal/login";
 	// 启动时同步开机自启状态到注册表
 	enableAutoStartChanged(m_enableAutoStart);
 }
@@ -193,4 +194,14 @@ void DataMaid::enableAutoStartChanged(bool value)
 void DataMaid::addLog(const LogDataEntity& log)
 {
 	emit sigLogAdded(log);
+}
+
+void DataMaid::authServerIpChanged(const QString& ip)
+{
+	if (ip == m_authServerIp) {
+		return;
+	}
+	m_authServerIp = ip;
+	ConfigHelper::setSetting("authServerIp", m_authServerIp);
+	emit sigAuthServerIpChanged();
 }

@@ -61,7 +61,7 @@ void AccountManager::onLogin(const QString& username, const QString& password)
 	LoginDataEntiry loginData;
 	loginData.user_account = username;
 	loginData.user_password = password;
-	QUrl url("https://192.168.125.13:802/eportal/portal/login");
+	QUrl url(DATAMAID.getAuthAddress());
 	QUrlQuery query;
 	query.addQueryItem("user_account", loginData.user_account);
 	query.addQueryItem("user_password", loginData.user_password);
@@ -112,7 +112,7 @@ void AccountManager::onLogin(const QString& username, const QString& password)
 
 void AccountManager::onLogout()
 {
-	QUrl url("https://192.168.125.13:802/eportal/portal/logout");
+	QUrl url(DATAMAID.getAuthAddress());
 	QUrlQuery query;
 
 	QString localIp = DATAMAID.getLocalIp();

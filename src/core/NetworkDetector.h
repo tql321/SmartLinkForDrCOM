@@ -7,9 +7,10 @@
 class QNetworkAccessManager;
 class QNetworkConfigurationManager;
 class QTimer;
-class NetworkDetector : public QObject
+class NetworkDetector : public QObject, public Singleton<NetworkDetector>
 {
 	Q_OBJECT
+	friend class Singleton<NetworkDetector>;
 public:
 	// 定义三种网络状态
 	enum NetworkState {
@@ -19,7 +20,7 @@ public:
 	};
 	Q_ENUM(NetworkState)
 
-		explicit NetworkDetector(QNetworkAccessManager* netManager, QObject* parent = nullptr);
+		
 
 	// 触发探测的入口函数
 	void startDetection();
@@ -27,6 +28,9 @@ public:
 	
 	// 处理网络状态变化的逻辑
 	void handleNetworkStateChanged(bool isOnline);
+	//解析校园网验证服务器ip
+	QString parseAuthServerIp(const QString& portalUrl);
+	QString parseServerUrl();
 	
 signals:
 	// 探测完成时发出此信号
@@ -39,6 +43,7 @@ private:
 	QTimer* m_forceLoginTimer;
 	QTimer* m_autoLoginTimer;
 private:
+	NetworkDetector();
 	// 内部的两步探测逻辑
 	void probeGateway();       // 第一步：探测内网
 	void probeCaptivePortal(); // 第二步：探测外网 204

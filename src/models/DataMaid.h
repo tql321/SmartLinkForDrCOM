@@ -28,6 +28,7 @@ signals:
 	void sigEnableAutoLoginChanged();
 	void sigEnableForceLoginChanged();
 	void sigLogAdded(const LogDataEntity& log);
+	void sigAuthServerIpChanged();
 public slots:
 	void curUsernameChanged(const QString& username);
 	void curPasswordChanged(const QString& password);
@@ -38,6 +39,7 @@ public slots:
 	void simulatedBrowseIntervalChanged(int value);
 	void enableAutoStartChanged(bool value);
 	void addLog(const LogDataEntity& log);
+	void authServerIpChanged(const QString& ip);
 public:
 	void addUser(const UserEntity& user);
 	void sortUsers();
@@ -50,7 +52,11 @@ public:
 	bool getEnableForceLogin() const { return m_enableForceLogin; };
 	int getSimulatedBrowseInterval() const { return m_simulatedBrowseInterval; };
 	bool getEnableAutoLoginCB() const { return m_enableAutoLoginCB; };
+	QString getAuthServerIp()const{return m_authServerIp;}
+	QString getAuthAddress()const { return m_authAddress; }
 	QString getLocalIp() const;
+
+	
 
 private:
 	qint32 m_simulatedBrowseInterval;
@@ -60,4 +66,6 @@ private:
 	QString m_curPassword;
 	bool m_enableAutoLoginCB;
 	bool m_enableForceLogin;
+	QString m_authServerIp;
+	QString m_authAddress;
 };

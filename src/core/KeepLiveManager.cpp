@@ -16,9 +16,9 @@
 KeepLiveManager::KeepLiveManager()
     : m_browseTimer(new QTimer(this)),
     m_networkManager(new QNetworkAccessManager(this)),
-    m_networkDetector(new NetworkDetector(m_networkManager, this))
-
+    m_networkDetector(&NetworkDetector::instance())
 {
+    
     startBrowseTimer();
     // 检测网络状态变化的结果，并根据结果调整保活策略
     connect(m_networkDetector, &NetworkDetector::sigDetectionFinished,

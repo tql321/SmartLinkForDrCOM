@@ -13,6 +13,7 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include"core/NetworkDetector.h"
 SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid* dataMaid, AccountManager* accountManager, QWidget* parent)
 	: QMainWindow(parent)
 	, ui(new Ui::SmartLinkForDrCOMClass)
@@ -25,6 +26,7 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid* dataMaid, AccountManager* account
 	connect(ui->accountCB, &QComboBox::currentTextChanged, m_dataMaid, &DataMaid::curUsernameChanged);
 	connect(ui->accountCB, QOverload<int>::of(&QComboBox::currentIndexChanged), m_dataMaid, &DataMaid::userItemChanged);
 	connect(ui->passwordLE, &QLineEdit::textChanged, m_dataMaid, &DataMaid::curPasswordChanged);
+	connect(ui->authServerIpE, &QLineEdit::textChanged, m_dataMaid, &DataMaid::authServerIpChanged);
 	connect(ui->loginBtn, &QPushButton::clicked, this, [this]() {
 		QString curUser = ui->accountCB->currentText();
 		QString curPass = ui->passwordLE->text();
@@ -37,7 +39,10 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid* dataMaid, AccountManager* account
 	connect(ui->enableAutoStartCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableAutoStartChanged);
 	connect(ui->enableAutoLoginCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableAutoLoginChanged);
 	connect(ui->enableForceLogin, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableForceLoginChanged);
-
+	connect(ui->parseIpBtn, &QPushButton::clicked, this, [this]() {
+		ui->authServerIpE->setText(NetworkDetector::instance().parseAuthServerIp(
+			NetworkDetector::instance().parseServerUrl()));
+	});
 	connect(m_dataMaid, &DataMaid::sigUsersChanged, this, &SmartLinkForDrCOM::usersChanged);
 	connect(m_accountManager, &AccountManager::sigLoginSuccess, m_dataMaid, &DataMaid::loginSuccess);
 	connect(m_dataMaid, &DataMaid::sigCurUsernameChanged, this, [this]() {
@@ -91,7 +96,7 @@ void SmartLinkForDrCOM::initUI() {
 	ui->enableAutoStartCB->setChecked(m_dataMaid->getEnableAutoStart());
 	ui->enableAutoLoginCB->setChecked(m_dataMaid->getEnableAutoLogin());
 	ui->enableForceLogin->setChecked(m_dataMaid->getEnableForceLogin());
-
+	ui->authServerIpE->setText(m_dataMaid->getAuthServerIp());
 }
 
 void SmartLinkForDrCOM::closeEvent(QCloseEvent* event)

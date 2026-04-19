@@ -2,21 +2,23 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QTimer>
+#include <QEventLoop>
 #include <QDebug>
 #include <QNetworkAccessManager>
 #include"KeepLiveManager.h"
 #include<QNetworkConfigurationManager>
 #include"../models/DataMaid.h"
 #include <QNetworkInterface>
-
-// HACK:ip先写死了，后续可以改成自动获取默认网关地址
-const QString GATEWAY_URL = "http://192.168.125.13";
+#include<QString>
+#include <QRegularExpression>
+#include<QRegularExpression>
+const QString GATEWAY_URL = DATAMAID.getAuthServerIp();
 // MIUI 204 探测接口
 const QString CPD_URL = "http://connect.rom.miui.com/generate_204";
 
-NetworkDetector::NetworkDetector(QNetworkAccessManager* netManager, QObject* parent)
-	: QObject(parent)
-	, m_netManager(netManager)
+NetworkDetector::NetworkDetector()
+	: QObject(nullptr)
+	, m_netManager(new QNetworkAccessManager(this))
 	, m_netConfigManager(new QNetworkConfigurationManager(this))
 	, m_forceLoginTimer(new QTimer(this))
 	, m_autoLoginTimer(new QTimer(this))
@@ -100,8 +102,11 @@ void NetworkDetector::handleNetworkStateChanged(bool isOnline)
 		// 网络都没了，保活毫无意义，立刻停止
 		KeepLiveManager::instance().stopBrowseTimer();
 		//TODO: 停止自动登录
+		
 	}
 }
+
+
 
 bool NetworkDetector::checkCurrentOnlineState()
 {
@@ -222,4 +227,74 @@ void NetworkDetector::probeCaptivePortal()
 
 		reply->deleteLater();
 		});
+}
+
+QString NetworkDetector::parseAuthServerIp(const QString& portalUrl)
+{
+	if (portalUrl.isEmpty()) {
+		qDebug() << "[-] portalUrl is empty.";
+		return "";
+	}
+
+	QNetworkRequest request((QUrl(portalUrl)));
+	// 伪装成浏览器请求
+	request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+	qDebug() << "[*] 正在请求 Portal 页面以提取参数...";
+	QNetworkReply* reply = m_netManager->get(request);
+
+	QEventLoop loop;
+	connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+	loop.exec(); // 等待请求完成
+
+	QString v4serip = "";
+	if (reply->error() == QNetworkReply::NoError) {
+		QString htmlContent = QString::fromUtf8(reply->readAll());
+		QRegularExpression re("v4serip\\s*=\\s*['\"]([^'\"]+)['\"]");
+		QRegularExpressionMatch match = re.match(htmlContent);
+
+		if (match.hasMatch()) {
+			v4serip = match.captured(1);
+			qDebug() << "[+] 成功提取到 v4serip:" << v4serip;
+		} else {
+			qDebug() << "[-] 页面请求成功，但未能在 HTML 中匹配到 v4serip 的值。";
+		}
+	} else {
+		qDebug() << "[x] 请求 Portal 页面失败:" << reply->errorString();
+	}
+
+	reply->deleteLater();
+	return v4serip;
+}
+
+QString NetworkDetector::parseServerUrl()
+{
+	QUrl url("http://captive.apple.com/hotspot-detect.html");
+	QNetworkRequest request(url);
+
+	// 发起请求
+	QNetworkReply* reply = m_netManager->get(request);
+
+	QEventLoop loop;
+	connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+	loop.exec(); // 等待请求完成
+
+	QString targetUrl = "";
+	if (reply->error() == QNetworkReply::NoError) {
+		QString content = reply->readAll();
+		QRegularExpression re("document\\.location\\.href=\"(.*?)\"");
+		QRegularExpressionMatch match = re.match(content);
+
+		if (match.hasMatch()) {
+			targetUrl = match.captured(1);
+			qDebug() << "提取到的目标网址:" << targetUrl;
+		} else {
+			qDebug() << "未匹配到重定向地址，请检查返回内容格式";
+		}
+	} else {
+		qDebug() << "请求失败:" << reply->errorString();
+	}
+
+	reply->deleteLater();
+	return targetUrl;
 }
