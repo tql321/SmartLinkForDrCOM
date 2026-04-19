@@ -9,6 +9,8 @@
 #include<QNetworkInterface>
 #include<QCoreApplication>
 #include<QDir>
+#include<QFile>
+#include<QTextStream>
 DataMaid::DataMaid()
 {
 	memberIni();
@@ -180,6 +182,7 @@ void DataMaid::enableAutoStartChanged(bool value)
 	}
 
 	// 写入或删除注册表以控制开机自启
+#ifdef Q_OS_WIN
 	QSettings reg("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
 	QString appName = "SmartLinkForDrCOM";
 	if (value) {
@@ -189,6 +192,27 @@ void DataMaid::enableAutoStartChanged(bool value)
 	else {
 		reg.remove(appName);
 	}
+#elif defined(Q_OS_LINUX)
+	QString desktopFilePath = QDir::homePath() + "/.config/autostart/SmartLinkForDrCOM.desktop";
+	if (value) {
+		QDir autostartDir(QDir::homePath() + "/.config/autostart");
+		if (!autostartDir.exists()) {
+			autostartDir.mkpath(".");
+		}
+		QFile file(desktopFilePath);
+		if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+			QTextStream out(&file);
+			out << "[Desktop Entry]\n";
+			out << "Type=Application\n";
+			out << "Name=SmartLinkForDrCOM\n";
+			out << "Exec=" << QCoreApplication::applicationFilePath() << "\n";
+			out << "Terminal=false\n";
+			file.close();
+		}
+	} else {
+		QFile::remove(desktopFilePath);
+	}
+#endif
 }
 
 void DataMaid::addLog(const LogDataEntity& log)

@@ -29,6 +29,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     ORG_NAME="${MY_ORG_NAME}"
     APP_NAME="${MY_APP_NAME}"
 )
+if(WIN32)
 set(OPENSSL_DLL_CRYPTO "${CMAKE_SOURCE_DIR}/openssl1.1.1-x64/libcrypto-1_1.dll")
 set(OPENSSL_DLL_SSL "${CMAKE_SOURCE_DIR}/openssl1.1.1-x64/libssl-1_1.dll")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -45,6 +46,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         ${OPENSSL_DLL_SSL}
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/libssl-1_1-x64.dll
 )
+endif()
 if (MSVC)
 target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
 endif()
