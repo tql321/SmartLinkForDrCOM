@@ -38,28 +38,40 @@ void NetworkDetector::initNetworkMonitor()
 	// 因此我们同时使用定时器轮询 QNetworkInterface 状态来弥补
 	connect(m_netConfigManager, &QNetworkConfigurationManager::onlineStateChanged,
 		this, &NetworkDetector::handleNetworkStateChanged);
+	connect(m_autoLoginTimer, &QTimer::timeout, this, [this]() {
+		bool currentOnline = checkCurrentOnlineState();
+		if (currentOnline != m_lastOnlineState) {
+			handleNetworkStateChanged(currentOnline);
+		}
+		});
+	// 掉线强制重连检测定时器
+	connect(m_forceLoginTimer, &QTimer::timeout, this, [this]() {
+		if (DATAMAID.getEnableForceLogin()) {
+			startDetection();
+		}
+		});
 	// 自动登录检测定时器
 	if (DATAMAID.getEnableAutoLogin()) {
-		connect(m_autoLoginTimer, &QTimer::timeout, this, [this]() {
-			bool currentOnline = checkCurrentOnlineState();
-			if (currentOnline != m_lastOnlineState) {
-				handleNetworkStateChanged(currentOnline);
-			}
-			});
+		
 		m_autoLoginTimer->start(5000); // 每5秒检查一次网络状态
 	}
 	if (DATAMAID.getEnableForceLogin()) {
-		// 掉线强制重连检测定时器
-		connect(m_forceLoginTimer, &QTimer::timeout, this, [this]() {
-			if (DATAMAID.getEnableForceLogin()) {
-				startDetection();
-			}
-			});
+		
 		m_forceLoginTimer->start(60000); // 每分钟检查一次网络状态
 	}
 
 
 	// 监听实时变更
+	connect(&DATAMAID, &DataMaid::sigEnableAutoLoginChanged, this, [this]() {
+		if (DATAMAID.getEnableAutoLogin()) {
+			if (!m_autoLoginTimer->isActive()) {
+				m_autoLoginTimer->start(5000); 
+			}
+		}
+		else {
+			m_autoLoginTimer->stop();
+		}
+		});
 	connect(&DATAMAID, &DataMaid::sigEnableForceLoginChanged, this, [this]() {
 		if (DATAMAID.getEnableForceLogin()) {
 			if (!m_forceLoginTimer->isActive()) {
@@ -240,14 +252,28 @@ QString NetworkDetector::parseAuthServerIp(const QString& portalUrl)
 	// 伪装成浏览器请求
 	request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 
-	qDebug() << "[*] 正在请求 Portal 页面以提取参数...";
+	qDebug() << "[*] 正在请求 Portal 页面以提取参数:" << portalUrl;
 	QNetworkReply* reply = m_netManager->get(request);
 
 	QEventLoop loop;
+	QTimer timer;
+	timer.setSingleShot(true);
+	connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
 	connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+
+	timer.start(5000); // 加入温和的 5 秒超时保护
 	loop.exec(); // 等待请求完成
 
 	QString v4serip = "";
+	// 检查是否是因为超时而退出的循环
+	if (!timer.isActive()) {
+		qDebug() << "[x] 请求 Portal 页面超时(无响应)。";
+		reply->abort();
+		reply->deleteLater();
+		return v4serip;
+	}
+	timer.stop(); // 正常完成则停掉定时器
+
 	if (reply->error() == QNetworkReply::NoError) {
 		QString htmlContent = QString::fromUtf8(reply->readAll());
 		QRegularExpression re("v4serip\\s*=\\s*['\"]([^'\"]+)['\"]");
@@ -258,6 +284,7 @@ QString NetworkDetector::parseAuthServerIp(const QString& portalUrl)
 			qDebug() << "[+] 成功提取到 v4serip:" << v4serip;
 		} else {
 			qDebug() << "[-] 页面请求成功，但未能在 HTML 中匹配到 v4serip 的值。";
+			qDebug() << "[Debug] 返回的前段内容:" << (htmlContent.length() > 200 ? htmlContent.left(200) + "..." : htmlContent);
 		}
 	} else {
 		qDebug() << "[x] 请求 Portal 页面失败:" << reply->errorString();
@@ -271,28 +298,50 @@ QString NetworkDetector::parseServerUrl()
 {
 	QUrl url("http://captive.apple.com/hotspot-detect.html");
 	QNetworkRequest request(url);
+	// 禁止 Qt 自动跟随重定向，方便我们主动抓取 301/302 头中的 Location
+	request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, false);
 
 	// 发起请求
 	QNetworkReply* reply = m_netManager->get(request);
 
 	QEventLoop loop;
+	QTimer timer;
+	timer.setSingleShot(true);
+	connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
 	connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+
+	timer.start(5000); // 5秒超时
 	loop.exec(); // 等待请求完成
 
 	QString targetUrl = "";
-	if (reply->error() == QNetworkReply::NoError) {
-		QString content = reply->readAll();
-		QRegularExpression re("document\\.location\\.href=\"(.*?)\"");
+	if (!timer.isActive()) {
+		qDebug() << "[x] 请求探测地址(captive)超时。";
+		reply->abort();
+		reply->deleteLater();
+		return targetUrl;
+	}
+	timer.stop();
+
+	int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+	// 如果校园网网关使用 HTTP 302/301 方式重定向
+	if (statusCode >= 300 && statusCode < 400) {
+		targetUrl = reply->header(QNetworkRequest::LocationHeader).toString();
+		qDebug() << "[+] 检测到 HTTP 30x 重定向，目标网址:" << targetUrl;
+	} 
+	// 如果校园网网关返回 200 OK 并使用 JS 强行跳转 (修改 href)
+	else {
+		QString content = QString::fromUtf8(reply->readAll());
+		// 增加兼容 window.location 等情况
+		QRegularExpression re("(?:document\\.location\\.href|window\\.location|location\\.href)\\s*=\\s*['\"]([^'\"]+)['\"]");
 		QRegularExpressionMatch match = re.match(content);
 
 		if (match.hasMatch()) {
 			targetUrl = match.captured(1);
-			qDebug() << "提取到的目标网址:" << targetUrl;
+			qDebug() << "[+] 从 HTML 脚本中提取到的目标网址:" << targetUrl;
 		} else {
-			qDebug() << "未匹配到重定向地址，请检查返回内容格式";
+			qDebug() << "[-] 未能在返回值中匹配到重定向地址。状态码:" << statusCode;
 		}
-	} else {
-		qDebug() << "请求失败:" << reply->errorString();
 	}
 
 	reply->deleteLater();

@@ -1,8 +1,4 @@
 #include "KeepLiveManager.h"
-#include "KeepLiveManager.h"
-#include "KeepLiveManager.h"
-#include "KeepLiveManager.h"
-#include "KeepLiveManager.h"
 #include "AccountManager.h"
 #include "../models/DataMaid.h"
 #include <QNetworkRequest>
@@ -18,12 +14,17 @@ KeepLiveManager::KeepLiveManager()
     m_networkManager(new QNetworkAccessManager(this)),
     m_networkDetector(&NetworkDetector::instance())
 {
-    
-    startBrowseTimer();
+    connect(m_browseTimer, &QTimer::timeout, this, &KeepLiveManager::sendHeartbeat);
+
     // 检测网络状态变化的结果，并根据结果调整保活策略
     connect(m_networkDetector, &NetworkDetector::sigDetectionFinished,
         this, &KeepLiveManager::handleNetworkState);
 
+    // 手动登录成功后的自启保活
+    connect(&AccountManager::instance(), &AccountManager::sigLoginSuccess, this, [this]() {
+        qDebug() << "✅ 手动登录成功！启动保活心跳...";
+        startBrowseTimer();
+    });
 }
 
 void KeepLiveManager::handleNetworkState(NetworkDetector::NetworkState state)
@@ -32,14 +33,14 @@ void KeepLiveManager::handleNetworkState(NetworkDetector::NetworkState state)
     case NetworkDetector::OuterNetwork:
         qDebug() << "当前处于外部网络（如家庭宽带）。无需操作。";
         stopBrowseTimer(); // 确保心跳关闭
-		//TODO:关闭自动登录（如果有的话）
         break;
 
     case NetworkDetector::CampusNeedsLogin:
-        qDebug() << "处于校园网，且未认证！准备自动登录...";
+        qDebug() << "处于校园网，且未认证！";
 
         // 检查用户是否开启了“自动登录”设置
         if (DATAMAID.getEnableAutoLogin()) { // 假设你有个获取配置的接口
+            qDebug() << "准备自动登录...";
             QString user = DATAMAID.getCurUsername();
             QString pwd = DATAMAID.getCurPassword();
             if (!user.isEmpty() && !pwd.isEmpty()) {

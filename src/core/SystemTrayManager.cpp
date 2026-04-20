@@ -1,4 +1,4 @@
-﻿#include "SystemTrayManager.h"
+#include "SystemTrayManager.h"
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QAction>
@@ -16,7 +16,11 @@ SystemTrayManager::SystemTrayManager(QObject* parent) : QObject(parent) {
     });
 }
 
-SystemTrayManager::~SystemTrayManager() {}
+SystemTrayManager::~SystemTrayManager() {
+    if (m_trayMenu) {
+        delete m_trayMenu;
+    }
+}
 
 void SystemTrayManager::setIcon(const QIcon& icon) { m_trayIcon->setIcon(icon); }
 

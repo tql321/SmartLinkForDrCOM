@@ -13,6 +13,7 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QDebug>
 #include"core/NetworkDetector.h"
 SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid* dataMaid, AccountManager* accountManager, QWidget* parent)
 	: QMainWindow(parent)
@@ -40,8 +41,13 @@ SmartLinkForDrCOM::SmartLinkForDrCOM(DataMaid* dataMaid, AccountManager* account
 	connect(ui->enableAutoLoginCB, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableAutoLoginChanged);
 	connect(ui->enableForceLogin, &QCheckBox::toggled, m_dataMaid, &DataMaid::enableForceLoginChanged);
 	connect(ui->parseIpBtn, &QPushButton::clicked, this, [this]() {
-		ui->authServerIpE->setText(NetworkDetector::instance().parseAuthServerIp(
-			NetworkDetector::instance().parseServerUrl()));
+		QString parsedIp = NetworkDetector::instance().parseAuthServerIp(
+			NetworkDetector::instance().parseServerUrl());
+		if (!parsedIp.isEmpty()) {
+			ui->authServerIpE->setText(parsedIp);
+		} else {
+			qDebug() << "解析 Portal IP 失败，保留原配置。";
+		}
 	});
 	connect(m_dataMaid, &DataMaid::sigUsersChanged, this, &SmartLinkForDrCOM::usersChanged);
 	connect(m_accountManager, &AccountManager::sigLoginSuccess, m_dataMaid, &DataMaid::loginSuccess);

@@ -14,7 +14,6 @@
 DataMaid::DataMaid()
 {
 	memberIni();
-	
 }
 
 void DataMaid::memberIni()
@@ -226,6 +225,8 @@ void DataMaid::authServerIpChanged(const QString& ip)
 		return;
 	}
 	m_authServerIp = ip;
+	m_authAddress = "https://" + m_authServerIp + ":802/eportal/portal/login";
+	m_logoutAddress = "https://" + m_authServerIp + ":802/eportal/portal/logout";
 	ConfigHelper::setSetting("authServerIp", m_authServerIp);
 	emit sigAuthServerIpChanged();
 }
