@@ -1,6 +1,10 @@
-# SmartLinkForDrCOM
+# 🌐 SmartLinkForDrCOM (校园网无感认证助手)
 
-SmartLinkForDrCOM 是一款专为广西师范大学校园网 （及DrCOM 认证系统的学校环境）设计的自动化登录与保活客户端。它能够智能探测网络状态，支持 Windows 桌面图形界面以及 Linux 服务器，让你告别频繁手动登录校园网的烦恼。
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)
+![Qt](https://img.shields.io/badge/Qt-5.12+-green.svg)
+
+SmartLinkForDrCOM 是一款专为广西师范大学校园网 （及DrCOM 哆点认证系统的学校环境）设计的自动化登录与保活客户端。它能够智能探测网络状态，支持 Windows 桌面图形界面以及 Linux 服务器，让你告别频繁手动登录校园网的烦恼。
 
 ## ✨ 主要特性
 
